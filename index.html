@@ -3,12 +3,87 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Crypto Alarm — GitHub Pages test</title>
-  <style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;max-width:720px;margin:80px auto;padding:0 24px;line-height:1.5} .ok{font-size:28px;font-weight:700} code{background:#f2f2f2;padding:3px 6px;border-radius:6px}</style>
+  <title>Crypto Alarm — диагностика API</title>
+  <style>
+    :root{color-scheme:light dark}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;max-width:860px;margin:48px auto;padding:0 20px;line-height:1.45}
+    h1{font-size:32px;margin-bottom:10px}
+    p{opacity:.8}
+    .grid{display:grid;grid-template-columns:1fr;gap:16px;margin-top:24px}
+    .card{border:1px solid #7775;border-radius:14px;padding:18px}
+    .name{font-weight:700;font-size:18px;margin-bottom:8px}
+    .url{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;overflow-wrap:anywhere;opacity:.75}
+    .status{margin-top:14px;font-weight:700}
+    .details{margin-top:8px;white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+    button{margin-top:22px;font:inherit;font-weight:700;padding:12px 18px;border:0;border-radius:10px;cursor:pointer}
+    .ok{color:#1a9b49}.bad{color:#d33}.wait{color:#c78a00}
+  </style>
 </head>
 <body>
-  <div class="ok">Crypto Alarm — тест GitHub Pages</div>
-  <p>Если эта страница открылась без VPN, GitHub Pages доступен из вашей сети.</p>
-  <p>Репозиторий: <code>pavka23031995/crypto-alarm</code></p>
+  <h1>Crypto Alarm — диагностика API</h1>
+  <p>Страница размещена на GitHub Pages. Она проверяет, доступен ли backend Crypto Alarm без VPN.</p>
+
+  <div class="grid">
+    <div class="card" id="card-workers">
+      <div class="name">Worker URL</div>
+      <div class="url">https://cripto-alarm-server.pavka2303.workers.dev/api/status</div>
+      <div class="status wait">Ожидание проверки…</div>
+      <div class="details"></div>
+    </div>
+
+    <div class="card" id="card-domain">
+      <div class="name">Custom domain</div>
+      <div class="url">https://alarm.pavka2303.com/api/status</div>
+      <div class="status wait">Ожидание проверки…</div>
+      <div class="details"></div>
+    </div>
+  </div>
+
+  <button id="run">Проверить ещё раз</button>
+
+<script>
+const targets = [
+  {id:'card-workers', url:'https://cripto-alarm-server.pavka2303.workers.dev/api/status'},
+  {id:'card-domain', url:'https://alarm.pavka2303.com/api/status'}
+];
+
+async function testTarget(t){
+  const card=document.getElementById(t.id);
+  const status=card.querySelector('.status');
+  const details=card.querySelector('.details');
+  status.className='status wait';
+  status.textContent='Проверка…';
+  details.textContent='';
+
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),15000);
+  const start=performance.now();
+  try{
+    const res=await fetch(t.url,{method:'GET',cache:'no-store',signal:controller.signal});
+    const elapsed=Math.round(performance.now()-start);
+    let body='';
+    try{ body=await res.text(); }catch(e){}
+    clearTimeout(timer);
+    status.className='status '+(res.ok?'ok':'bad');
+    status.textContent=res.ok?'Доступен':'Ответ с ошибкой';
+    details.textContent=`HTTP: ${res.status}\nВремя: ${elapsed} мс\nОтвет: ${body.slice(0,500) || '(пусто)'}`;
+  }catch(err){
+    clearTimeout(timer);
+    const elapsed=Math.round(performance.now()-start);
+    status.className='status bad';
+    status.textContent=err.name==='AbortError'?'Таймаут 15 секунд':'Ошибка подключения';
+    details.textContent=`Время: ${elapsed} мс\nОшибка: ${err.message}`;
+  }
+}
+
+async function runAll(){
+  document.getElementById('run').disabled=true;
+  await Promise.all(targets.map(testTarget));
+  document.getElementById('run').disabled=false;
+}
+
+document.getElementById('run').addEventListener('click',runAll);
+runAll();
+</script>
 </body>
 </html>
